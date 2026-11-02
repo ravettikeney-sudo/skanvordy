@@ -1,6 +1,6 @@
 // Сканворды работают без интернета: страница, база слов и шрифты хранятся на телефоне, свежая версия подтягивается при подключении.
-const CACHE = "skan-v2";
-const SHELL = ["./", "./index.html", "./style.css", "./app.js", "./engine.js", "./words.js", "./manifest.json", "./version.json", "./icon-192.png", "./icon-512.png",
+const CACHE = "skan-v4";
+const SHELL = ["./", "./index.html", "./style.css", "./app.js", "./engine.js", "./nono-pics.js", "./games.js", "./words.js", "./manifest.json", "./version.json", "./icon-192.png", "./icon-512.png",
   "./fonts/rubik-cyrillic-400-normal.woff2", "./fonts/rubik-cyrillic-500-normal.woff2", "./fonts/rubik-cyrillic-700-normal.woff2", "./fonts/roboto-condensed-cyrillic-500-normal.woff2",
   "./fonts/rubik-latin-400-normal.woff2", "./fonts/rubik-latin-500-normal.woff2", "./fonts/rubik-latin-700-normal.woff2", "./fonts/roboto-condensed-latin-500-normal.woff2"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

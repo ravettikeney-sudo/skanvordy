@@ -47,7 +47,7 @@
     const dt = new Date(y, m - 1, day); dt.setDate(dt.getDate() + 13); return dt;
   }
   function themeOn(th, s) {
-    if (th.dates === "always") return false;
+    if (th.dates === "always" || th.dates === "genre" || th.dates === "topic") return false;
     const d = parseD(s), y = d.getFullYear();
     if (th.dates.startsWith("easter")) {
       const ed = easter(y), diff = Math.round((d - ed) / 864e5);
@@ -60,15 +60,34 @@
     return A <= B ? md >= A && md <= B : md >= A || md <= B;
   }
   const THEMES = window.SKAN_WORDS.themes;
+  const SEASON = THEMES.filter(t => t.dates !== "genre" && t.dates !== "topic"), GENRES = THEMES.filter(t => t.dates === "genre" || t.dates === "topic");
+  const MODE_T = { scan: "Сканворд", cross: "Кроссворд", key: "Кейворд" };
+  const themeTitle = (th, mode) => th.dates !== "genre" && th.dates !== "topic" && mode === "scan" ? th.name : MODE_T[mode] + ": " + th.name.replace(/\s*сканворд\s*/i, " ").trim().replace(/^ко?\s/, "").replace(/^./, c => c.toUpperCase());
   const themeFor = s => THEMES.find(t => themeOn(t, s)) || null;
 
   // ---------- сканворды ----------
   const SIZES = { s: { w: 8, h: 10, name: "Малый", note: "10 минут" }, m: { w: 9, h: 12, name: "Средний", note: "15 минут" }, l: { w: 10, h: 13, name: "Большой", note: "20 минут" } };
 
-  function makeRec(id, kind, seed, size, theme, date) {
+  function makeRec(id, kind, seed, size, theme, date, mode) {
     const z = SIZES[size];
+    mode = mode || "scan";
     const p = E.generate(seed, { w: z.w, h: z.h, tries: kind === "daily" ? 50 : 24, themeWords: theme ? theme.words : [] });
-    return { id, kind, seed, size, theme: theme ? theme.id : null, date: date || null, p, e: p.cells.map(() => ""), rev: [], solved: [], t: 0, hu: 0, done: false, ts: Date.now() };
+    const r = { id, kind, seed, size, mode, theme: theme ? theme.id : null, date: date || null, p, e: p.cells.map(() => ""), rev: [], solved: [], t: 0, hu: 0, done: false, ts: Date.now() };
+    if (mode === "key") setupKey(r);
+    return r;
+  }
+  // Кейворд: каждой букве своё число, две буквы открыты сразу
+  function setupKey(r) {
+    const p = r.p, rnd = E.mulberry32(E.hashStr("key-" + r.seed));
+    const cnt = {};
+    p.cells.forEach(c => { if (c.t === "L") cnt[c.a] = (cnt[c.a] || 0) + 1; });
+    const letters = Object.keys(cnt);
+    for (let i = letters.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [letters[i], letters[j]] = [letters[j], letters[i]]; }
+    r.code = {}; letters.forEach((ch, i) => r.code[ch] = i + 1);
+    const byFreq = letters.slice().sort((a, b) => cnt[b] - cnt[a]);
+    const give = [byFreq[1], byFreq[3]].filter(Boolean);
+    p.cells.forEach((c, i) => { if (c.t === "L" && give.includes(c.a)) { r.e[i] = c.a; r.rev.push(i); } });
+    p.words.forEach(w => { let ok = true; for (let k = 0; k < w.word.length; k++) { const i = (w.r + (w.dir === "d" ? k : 0)) * p.w + w.c + (w.dir === "a" ? k : 0); if (r.e[i] !== w.word[k]) ok = false; } if (ok) r.solved.push(w.id); });
   }
   const loadRec = id => store.get("p." + id, null);
   function saveRec(r) {
@@ -93,14 +112,15 @@
       saveRec(r); startGame(r);
     });
   }
-  function openFree(size, seed, themeId) {
+  function openFree(size, seed, themeId, mode) {
+    mode = MODE_T[mode] ? mode : "scan";
     const th = themeId ? THEMES.find(t => t.id === themeId) : null;
     seed = seed || (Date.now().toString(36) + Math.random().toString(36).slice(2, 7));
-    const id = "f" + (themeId ? themeId + "-" : "") + size + "-" + seed;
+    const id = "f" + (mode !== "scan" ? mode + "-" : "") + (themeId ? themeId + "-" : "") + size + "-" + seed;
     let r = loadRec(id);
     if (r) return startGame(r);
-    withLoader(th ? "Составляю праздничный сканворд…" : "Составляю новый сканворд…", () => {
-      r = makeRec(id, th ? "theme" : "free", (th ? th.id + "-" : "") + seed, size, th, null);
+    withLoader("Составляю " + (mode === "scan" ? "сканворд" : mode === "cross" ? "кроссворд" : "кейворд") + "…", () => {
+      r = makeRec(id, th ? "theme" : "free", (th ? th.id + "-" : "") + seed, size, th, null, mode);
       saveRec(r); startGame(r);
     });
   }
@@ -136,16 +156,10 @@
     go.onclick = () => openDaily(s); box.appendChild(go);
     void mg;
 
-    $("#sizes").innerHTML = "";
-    Object.entries(SIZES).forEach(([k, z]) => {
-      const b = document.createElement("button"); b.className = "size";
-      const g = Array.from({ length: (z.w - 5) * (z.h - 7) }, () => "<span></span>").join("");
-      b.innerHTML = `<div class="g" style="grid-template-columns:repeat(${z.w - 5},7px)">${g}</div><b>${z.name}</b><small>${z.w}×${z.h}<br>≈ ${z.note}</small>`;
-      b.onclick = () => openFree(k); $("#sizes").appendChild(b);
-    });
+    window.SKG.home(s);
 
     $("#themes").innerHTML = "";
-    const order = THEMES.slice().sort((a, b) => (themeOn(b, s) ? 1 : 0) - (themeOn(a, s) ? 1 : 0));
+    const order = SEASON.slice().sort((a, b) => (themeOn(b, s) ? 1 : 0) - (themeOn(a, s) ? 1 : 0));
     order.forEach(t => {
       const b = document.createElement("button"); b.className = "theme" + (themeOn(t, s) ? " now" : "");
       b.innerHTML = `<div class="e">${t.emoji}</div><b>${t.name}</b>`;
@@ -158,9 +172,12 @@
     list.slice(0, 5).forEach(x => {
       const th2 = x.theme ? THEMES.find(t => t.id === x.theme) : null;
       const b = document.createElement("button"); b.className = "row";
-      const pr2 = progress(x);
-      b.innerHTML = `<div class="t"><b>${th2 ? th2.emoji + " " + th2.name : SIZES[x.size].name + " сканворд"}</b><small>Решено ${Math.round(pr2 * 100)}%, ${tfmt(x.t)}</small><div class="bar"><i style="width:${Math.round(pr2 * 100)}%"></i></div></div>`;
-      b.onclick = () => startGame(x); $("#cont").appendChild(b);
+      const g = x.game ? window.SKG.info(x) : null;
+      const pr2 = g ? g.progress : progress(x);
+      const md = x.mode || "scan";
+      const label = g ? g.label : th2 ? th2.emoji + " " + themeTitle(th2, md) : SIZES[x.size].name + " " + MODE_T[md].toLowerCase();
+      b.innerHTML = `<div class="t"><b>${label}</b><small>Решено ${Math.round(pr2 * 100)}%, ${tfmt(x.t)}</small><div class="bar"><i style="width:${Math.round(pr2 * 100)}%"></i></div></div>`;
+      b.onclick = () => g ? window.SKG.resume(x) : startGame(x); $("#cont").appendChild(b);
     });
 
     const days = $("#days"); days.innerHTML = "";
@@ -180,7 +197,7 @@
   }
 
   // ---------- игра ----------
-  let R = null, P = null, at = [], cur = { w: 0, k: 0 }, timer = null, zoom = false, bad = new Set(), dirty = false;
+  let R = null, P = null, at = [], cur = { w: 0, k: 0 }, timer = null, zoom = false, bad = new Set(), dirty = false, codeCells = {}, NUM = {};
   const isRev = i => R.rev.indexOf(i) >= 0;
 
   function startGame(r) {
@@ -188,7 +205,10 @@
     at = P.cells.map(() => ({}));
     P.words.forEach(w => { for (let k = 0; k < w.word.length; k++) { const i = cellOf(w, k); at[i][w.dir] = w.id; } });
     const th = r.theme ? THEMES.find(t => t.id === r.theme) : null;
-    $("#gTitle").textContent = r.kind === "daily" ? (th ? th.emoji + " " : "") + "Сканворд " + human(r.date) : th ? th.emoji + " " + th.name : SIZES[r.size].name + " сканворд";
+    const mode = r.mode || "scan";
+    $("#game").dataset.mode = mode;
+    if (mode === "key") { codeCells = {}; P.cells.forEach((c, i) => { if (c.t === "L") (codeCells[r.code[c.a]] = codeCells[r.code[c.a]] || []).push(i); }); }
+    $("#gTitle").textContent = r.kind === "daily" ? (th ? th.emoji + " " : "") + "Сканворд " + human(r.date) : th ? th.emoji + " " + themeTitle(th, mode) : SIZES[r.size].name + " " + MODE_T[mode].toLowerCase();
     show("game");
     buildGrid();
     const first = P.words.find(w => R.solved.indexOf(w.id) < 0) || P.words[0];
@@ -213,12 +233,17 @@
     g.style.setProperty("--cs", cs + "px");
     $("#gridbox").style.setProperty("--cs", cs + "px");
     g.style.gridTemplateColumns = `repeat(${P.w},${cs}px)`;
+    const mode = R.mode || "scan";
+    NUM = {};
+    if (mode === "cross") { let n = 0; [...new Set(P.words.map(w => w.r * P.w + w.c))].sort((a, b) => a - b).forEach(i => NUM[i] = ++n); }
     P.cells.forEach((c, i) => {
-      const d = document.createElement("div"); d.className = "cell " + c.t; d.dataset.i = i;
-      if (c.t === "C") c.q.forEach(id => { const q = document.createElement("div"); q.className = "q"; q.dataset.w = id; q.textContent = P.words[id].clue; d.appendChild(q); });
+      const d = document.createElement("div"); d.className = "cell " + (mode !== "scan" && c.t !== "L" ? "X" : c.t); d.dataset.i = i;
+      if (c.t === "C" && mode === "scan") c.q.forEach(id => { const q = document.createElement("div"); q.className = "q"; q.dataset.w = id; q.textContent = P.words[id].clue; d.appendChild(q); });
+      if (c.t === "L") d.innerHTML = '<span class="v"></span>' + (mode === "cross" && NUM[i] ? `<i class="n">${NUM[i]}</i>` : mode === "key" ? `<i class="n">${R.code[c.a]}</i>` : "");
       g.appendChild(d);
     });
-    fitClues(); drawArrows(cs); paint();
+    if (mode === "scan") { fitClues(); drawArrows(cs); } else { $("#arrows").innerHTML = ""; $("#arrows").setAttribute("width", 0); }
+    paint();
   }
   function fitClues() {
     document.querySelectorAll(".cell.C .q").forEach(q => {
@@ -262,7 +287,7 @@
       const el = els[i];
       if (c.t === "L") {
         const v = R.e[i];
-        el.textContent = v;
+        el.firstChild.textContent = v;
         el.className = "cell L" + (inW.has(i) ? " w" : "") + (i === ci ? " cur" : "") + (solvedCells.has(i) ? " done ok" : "") + (isRev(i) ? " rev" : "") +
           (v && (bad.has(i) || (S.easy && v !== c.a)) ? " bad" : "");
       } else if (c.t === "C") {
@@ -271,8 +296,17 @@
     });
     const ct = $("#clueText"), done = R.solved.indexOf(w.id) >= 0;
     ct.className = "cluetext" + (done ? " done" : "");
-    ct.querySelector("b").textContent = w.clue;
-    ct.querySelector("small").textContent = (done ? "Отгадано: " + w.word : w.word.length + " " + plural(w.word.length, "буква", "буквы", "букв")) + (w.dir === "a" ? ", по горизонтали" : ", по вертикали");
+    const mode = R.mode || "scan";
+    if (mode === "key") {
+      const code = R.code[P.cells[ci].a], total = Object.keys(R.code).length;
+      const known = Object.keys(codeCells).filter(n => R.e[codeCells[n][0]]).length;
+      ct.className = "cluetext";
+      ct.querySelector("b").textContent = R.e[ci] ? "Число " + code + " — это «" + R.e[ci] + "»?" : "Какая буква под числом " + code + "?";
+      ct.querySelector("small").textContent = "Открыто " + known + " из " + total + " · таблица шифра ›";
+    } else {
+      ct.querySelector("b").textContent = (mode === "cross" ? NUM[w.r * P.w + w.c] + ". " : "") + w.clue;
+      ct.querySelector("small").textContent = (done ? "Отгадано: " + w.word : w.word.length + " " + plural(w.word.length, "буква", "буквы", "букв")) + (w.dir === "a" ? ", по горизонтали" : ", по вертикали") + " · все вопросы ›";
+    }
     if (zoom) { const el = els[ci]; if (el) el.scrollIntoView({ block: "nearest", inline: "nearest" }); }
   }
 
@@ -311,9 +345,20 @@
       if (k >= w.word.length) return nextWord(1);
       cur.k = k; i = cellOf(w, k);
     }
-    R.e[i] = ch; bad.delete(i); dirty = true;
-    buzz(8);
-    const solvedNow = checkWords(i);
+    let solvedNow;
+    if (R.mode === "key") {
+      const code = R.code[P.cells[i].a];
+      const clash = P.cells.findIndex((c, j) => c.t === "L" && R.e[j] === ch && R.code[c.a] !== code && locked(j));
+      if (clash >= 0) { toast("Буква «" + ch + "» уже стоит под числом " + R.code[P.cells[clash].a]); buzz([10, 40, 10]); return; }
+      P.cells.forEach((c, j) => { if (c.t === "L" && R.e[j] === ch && R.code[c.a] !== code) { R.e[j] = ""; bad.delete(j); } });
+      codeCells[code].forEach(j => { if (!locked(j)) { R.e[j] = ch; bad.delete(j); } });
+      dirty = true; buzz(8);
+      solvedNow = false; codeCells[code].forEach(j => { if (checkWords(j)) solvedNow = true; });
+    } else {
+      R.e[i] = ch; bad.delete(i); dirty = true;
+      buzz(8);
+      solvedNow = checkWords(i);
+    }
     if (R.done) return;
     if (solvedNow && R.solved.indexOf(cur.w) >= 0) { save(); return setTimeout(() => nextWord(1, true), 260); }
     let k = cur.k + 1;
@@ -331,7 +376,10 @@
       if (k < 0) { paint(); return; }
       cur.k = k; i = cellOf(w, k);
     }
-    if (!locked(i)) { R.e[i] = ""; bad.delete(i); }
+    if (!locked(i)) {
+      if (R.mode === "key") codeCells[R.code[P.cells[i].a]].forEach(j => { if (!locked(j)) { R.e[j] = ""; bad.delete(j); } });
+      else { R.e[i] = ""; bad.delete(i); }
+    }
     buzz(5); paint(); save();
   }
   function checkWords(i) {
@@ -342,7 +390,7 @@
       for (let k = 0; k < x.word.length; k++) if (R.e[cellOf(x, k)] !== x.word[k]) { ok = false; break; }
       if (ok) { R.solved.push(id); any = true; ST.words++; }
     });
-    if (any) { ding(); if (R.solved.length === P.words.length) finish(); }
+    if (any) { ding(); if (!R.done && R.solved.length === P.words.length) finish(); }
     return any;
   }
   function nextWord(d, skipSolved) {
@@ -386,16 +434,20 @@
     if (R.e[i] === P.cells[i].a) { k = -1; for (let j = 0; j < w.word.length; j++) { const ii = cellOf(w, j); if (R.e[ii] !== P.cells[ii].a) { k = j; break; } } }
     if (k < 0) { toast("В этом слове всё верно"); return; }
     if (!useHint(1)) return;
-    i = cellOf(w, k); revealCell(i); cur.k = k;
-    closeSheet(); checkWords(i); paint(); save();
+    i = cellOf(w, k); cur.k = k;
+    const cells = R.mode === "key" ? codeCells[R.code[P.cells[i].a]] : [i];
+    cells.forEach(revealCell);
+    closeSheet(); cells.forEach(j => checkWords(j)); if (!R.done) { paint(); save(); }
   }
   function hintWord() {
     const w = P.words[cur.w];
     if (R.solved.indexOf(w.id) >= 0) { toast("Это слово уже отгадано"); return; }
     if (!useHint(3)) return;
-    for (let k = 0; k < w.word.length; k++) revealCell(cellOf(w, k));
+    const cells = [];
+    for (let k = 0; k < w.word.length; k++) { const i = cellOf(w, k); if (R.mode === "key") codeCells[R.code[P.cells[i].a]].forEach(j => cells.push(j)); else cells.push(i); }
+    cells.forEach(revealCell);
     closeSheet();
-    for (let k = 0; k < w.word.length; k++) checkWords(cellOf(w, k));
+    cells.forEach(j => checkWords(j));
     if (!R.done) { paint(); save(); setTimeout(() => nextWord(1, true), 300); }
   }
   function checkAll() {
@@ -429,6 +481,27 @@
     if ($("#hG")) $("#hG").onclick = takeGift;
   }
 
+  // ---------- список вопросов и таблица шифра ----------
+  function clueList() {
+    if (R.mode === "key") return keyTable();
+    const mode = R.mode || "scan";
+    const pos = w => w.r * P.w + w.c;
+    const item = w => `<button class="cl${R.solved.indexOf(w.id) >= 0 ? " ok" : ""}${w.id === cur.w ? " act" : ""}" data-w="${w.id}"><b>${mode === "cross" ? NUM[pos(w)] + "." : "•"}</b><span>${w.clue} <small>(${w.word.length})</small></span>${R.solved.indexOf(w.id) >= 0 ? `<em>${w.word}</em>` : ""}</button>`;
+    const list = dir => P.words.filter(w => w.dir === dir).sort((a, b) => pos(a) - pos(b)).map(item).join("");
+    openSheet(`<h2>Вопросы</h2><h3 class="sub">По горизонтали</h3><div class="cls">${list("a")}</div><h3 class="sub">По вертикали</h3><div class="cls">${list("d")}</div>`);
+    document.querySelectorAll("#sheet .cl").forEach(b => b.onclick = () => { closeSheet(); select(+b.dataset.w); });
+  }
+  function keyTable() {
+    const n = Object.keys(R.code).length, inv = {};
+    Object.entries(R.code).forEach(([ch, c]) => inv[c] = ch);
+    const used = new Set(); Object.keys(codeCells).forEach(c => { const v = R.e[codeCells[c][0]]; if (v) used.add(v); });
+    const ALL = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
+    let cells = "";
+    for (let c = 1; c <= n; c++) { const i0 = codeCells[c][0], v = R.e[i0]; cells += `<div class="kc${R.rev.indexOf(i0) >= 0 ? " given" : ""}${v ? "" : " empty"}"><small>${c}</small><b>${v || "?"}</b></div>`; }
+    openSheet(`<h2>Таблица шифра</h2><p>Одинаковые числа — одинаковые буквы. Разные числа — разные буквы.</p><div class="keytab">${cells}</div>
+      <h3 class="sub">Ещё не использованы</h3><div class="abc">${ALL.split("").map(ch => `<span class="${used.has(ch) ? "u" : ""}">${ch}</span>`).join("")}</div>`);
+  }
+
   // ---------- финал ----------
   function finish() {
     R.done = true; clearInterval(timer);
@@ -445,8 +518,9 @@
   }
   function shareText() {
     const th = R.theme ? THEMES.find(t => t.id === R.theme) : null;
-    const title = R.kind === "daily" ? "Сканворд дня, " + human(R.date) : th ? th.name : SIZES[R.size].name + " сканворд";
-    const link = R.kind === "daily" ? HOME + "?d=" + R.date : HOME + "?s=" + encodeURIComponent(freeSeed()) + "&z=" + R.size + (R.theme ? "&t=" + R.theme : "");
+    const mode = R.mode || "scan";
+    const title = R.kind === "daily" ? "Сканворд дня, " + human(R.date) : th ? themeTitle(th, mode) : SIZES[R.size].name + " " + MODE_T[mode].toLowerCase();
+    const link = R.kind === "daily" ? HOME + "?d=" + R.date : HOME + "?s=" + encodeURIComponent(freeSeed()) + "&z=" + R.size + (R.theme ? "&t=" + R.theme : "") + (mode !== "scan" ? "&m=" + mode : "");
     const stars = R.hu === 0 ? "⭐⭐⭐" : R.hu <= 3 ? "⭐⭐" : "⭐";
     return `🧩 ${title}\nРешил(а) за ${tfmt(R.t)} ${stars}\n${R.hu ? "Подсказок: " + R.hu : "Без единой подсказки!"}\nСможете быстрее? ${link}`;
   }
@@ -462,16 +536,16 @@
     const th = R.theme ? THEMES.find(t => t.id === R.theme) : null;
     const stars = R.hu === 0 ? 3 : R.hu <= 3 ? 2 : 1;
     openSheet(`<div class="win"><div class="medal">${th ? th.emoji : "★"}</div>
-      <h2>${fresh ? "Сканворд решён!" : "Этот сканворд уже решён"}</h2>
+      <h2>${fresh ? MODE_T[R.mode || "scan"] + " решён!" : "Уже решён"}</h2>
       <p>${"⭐".repeat(stars)}${R.kind === "daily" && ST.lastDaily === today() && ST.streak > 1 ? "<br>Вы решаете " + ST.streak + " " + plural(ST.streak, "день", "дня", "дней") + " подряд" : ""}</p>
       <div class="nums"><div><b>${tfmt(R.t)}</b><small>время</small></div><div><b>${P.words.length}</b><small>${plural(P.words.length, "слово", "слова", "слов")}</small></div><div><b>${R.hu}</b><small>${plural(R.hu, "подсказка", "подсказки", "подсказок")}</small></div></div>
       <button class="big" id="wShare">Отправить результат друзьям</button>
-      ${th ? `<button class="big alt" id="wCard">${th.emoji} Отправить открытку к празднику</button>` : ""}
-      <button class="big alt" id="wNext">Новый сканворд</button>
+      ${th && th.card && th.card !== "-" && th.dates !== "topic" ? `<button class="big alt" id="wCard">${th.emoji} Отправить открытку к празднику</button>` : ""}
+      <button class="big alt" id="wNext">${R.mode === "cross" ? "Новый кроссворд" : R.mode === "key" ? "Новый кейворд" : "Новый сканворд"}</button>
       <button class="big alt" id="wHome">На главную</button></div>`);
     $("#wShare").onclick = share;
     if ($("#wCard")) $("#wCard").onclick = () => { const u = CARDS + "?h=" + th.card; if (APP && APP.openUrl) APP.openUrl(u); else window.open(u, "_blank"); };
-    $("#wNext").onclick = () => { closeSheet(); openFree(R.size === "s" || R.size === "l" ? R.size : "m", null, R.theme && R.kind === "theme" ? R.theme : null); };
+    $("#wNext").onclick = () => { closeSheet(); openFree(R.size === "s" || R.size === "l" ? R.size : "m", null, R.theme && R.kind === "theme" ? R.theme : null, R.mode); };
     $("#wHome").onclick = () => { closeSheet(); goHome(); };
   }
   function confetti() {
@@ -533,10 +607,11 @@
 
   // ---------- навигация ----------
   function show(id) { document.querySelectorAll(".screen").forEach(s => s.classList.toggle("on", s.id === id)); }
-  function goHome() { if (R) save(); clearInterval(timer); show("home"); renderHome(); history.replaceState(null, "", location.pathname); }
+  function goHome() { if (R && $("#game").classList.contains("on")) save(); clearInterval(timer); show("home"); renderHome(); history.replaceState(null, "", location.pathname); }
   window.appBack = function () {
     if ($("#sheetbg").classList.contains("on")) { closeSheet(); return true; }
     if ($("#game").classList.contains("on")) { goHome(); return true; }
+    if ($("#pz").classList.contains("on")) { window.SKG.leave(); goHome(); return true; }
     return false;
   };
 
@@ -571,6 +646,7 @@
   });
   $("#back").onclick = goHome;
   $("#prevW").onclick = () => nextWord(-1);
+  $("#clueText").onclick = () => R && clueList();
   $("#nextW").onclick = () => nextWord(1);
   $("#hintBtn").onclick = () => R && !R.done ? hintSheet() : R && showWin(false);
   $("#zoom").onclick = () => { zoom = !zoom; $("#zoomPlus").setAttribute("d", zoom ? "M20 20l-4-4M8 11h6" : "M20 20l-4-4M11 8v6M8 11h6"); buildGrid(); };
@@ -580,12 +656,38 @@
   document.addEventListener("visibilitychange", () => { if (document.hidden && R) save(); else if ($("#home").classList.contains("on")) renderHome(); });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applySet);
 
+  // ---------- общие функции для других головоломок (games.js) ----------
+  window.SK = { $, store, S, ST, saveStats, saveRec, loadRec, today, dstr, human, parseD, tfmt, plural, toast, openSheet, closeSheet, show, goHome, buzz, ding, confetti,
+    withLoader, openFree, openDaily, THEMES, GENRES, SEASON, themeOn, themeFor, SIZES, E, HOME, APP, CARDS,
+    shareText(txt) {
+      if (APP && APP.shareText) { try { APP.shareText(txt); return; } catch (e) { } }
+      if (navigator.share) { navigator.share({ text: txt }).catch(() => { }); return; }
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast("Скопировано. Вставьте в WhatsApp или Telegram"));
+    },
+    spendHint(n) { if (ST.hints < n) { toast("Подсказки закончились"); return false; } ST.hints -= n; saveStats(); return true; },
+    hintExtras() { return { gift: giftToday(), ads: !!(APP && APP.hasAds && APP.hasAds()), freeLeft: freeLeft() }; },
+    takeGift() { ST.gift = today(); ST.hints += 2; saveStats(); toast("+2 подсказки. Приходите завтра за новыми!"); },
+    getMore(after) { getMoreGeneric(after); },
+    solvedOne() { ST.solved++; ST.hints += 1; saveStats(); }
+  };
+  function getMoreGeneric(after) {
+    if (APP && APP.hasAds && APP.hasAds()) {
+      window.onRewarded = ok => { if (ok) { ST.hints += 3; saveStats(); toast("+3 подсказки"); after && after(); } else toast("Видео не досмотрено, подсказки не начислены"); };
+      try { APP.showRewarded(); } catch (e) { toast("Видео сейчас недоступно"); }
+      return;
+    }
+    if (freeLeft() <= 0) { toast("На сегодня всё. Завтра будут ещё"); return; }
+    const f = ST.free && ST.free.d === today() ? ST.free : { d: today(), n: 0 };
+    f.n++; ST.free = f; ST.hints += 3; saveStats(); toast("+3 подсказки"); after && after();
+  }
+
   // ---------- старт ----------
   renderHome();
   const qs = new URLSearchParams(location.search);
   const qd = qs.get("d"), qsd = qs.get("s");
-  if (qd && /^\d{4}-\d{2}-\d{2}$/.test(qd) && qd <= today()) openDaily(qd);
-  else if (qsd) openFree(SIZES[qs.get("z")] ? qs.get("z") : "m", qsd.slice(0, 40), THEMES.some(t => t.id === qs.get("t")) ? qs.get("t") : null);
+  if (qs.get("g")) window.SKG.boot(qs);
+  else if (qd && /^\d{4}-\d{2}-\d{2}$/.test(qd) && qd <= today()) openDaily(qd);
+  else if (qsd) openFree(SIZES[qs.get("z")] ? qs.get("z") : "m", qsd.slice(0, 40), THEMES.some(t => t.id === qs.get("t")) ? qs.get("t") : null, qs.get("m"));
   else if (qs.get("play") === "daily") openDaily(today());
 
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => { });
