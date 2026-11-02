@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Версия для сайта: умеет сама скачивать и ставить обновления -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <application>
+        <receiver android:name=".Updater$InstallResult" android:exported="false" />
+    </application>
+</manifest>

@@ -17,6 +17,12 @@ android {
             keyPassword "skanvordy-store"
         }
     }
+    buildFeatures { buildConfig true }
+    flavorDimensions "dist"
+    productFlavors {
+        site { dimension "dist"; buildConfigField "boolean", "SELF_UPDATE", "true" }
+        store { dimension "dist"; buildConfigField "boolean", "SELF_UPDATE", "false" }
+    }
     buildTypes {
         release { minifyEnabled false; signingConfig signingConfigs.release }
     }

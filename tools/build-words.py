@@ -34,8 +34,11 @@ for f in sorted(SRC.glob("*.txt")):
             continue
         if line.startswith("@"):
             tid, name, emoji, card, dates = line[1:].split("|")
-            theme = {"id": tid, "name": name, "emoji": emoji, "card": card, "dates": dates, "words": []}
-            themes.append(theme); continue
+            theme = next((t for t in themes if t["id"] == tid), None)
+            if theme is None:
+                theme = {"id": tid, "name": name, "emoji": emoji, "card": card, "dates": dates, "words": []}
+                themes.append(theme)
+            continue
         parts = line.split("|")
         w = add(parts[0], parts[1:], line)
         if w and theme is not None and w not in theme["words"]:

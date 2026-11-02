@@ -61,7 +61,7 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new Bridge(), "SkanApp");
         Daily.ensureChannel(this);
         Daily.schedule(this);
-        Updater.check(this);
+        if (BuildConfig.SELF_UPDATE) Updater.check(this);
         String start = getIntent() != null ? getIntent().getStringExtra("url") : null;
         if (start != null && start.startsWith(HOME)) web.loadUrl(start);
         else if (getIntent() != null && getIntent().getData() != null && getIntent().getData().toString().startsWith(HOME)) web.loadUrl(getIntent().getData().toString());
@@ -131,6 +131,6 @@ public class MainActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
     @Override protected void onPause() { super.onPause(); web.onPause(); }
-    @Override protected void onResume() { super.onResume(); web.onResume(); Updater.resume(this); }
+    @Override protected void onResume() { super.onResume(); web.onResume(); if (BuildConfig.SELF_UPDATE) Updater.resume(this); }
     @Override protected void onDestroy() { web.destroy(); super.onDestroy(); }
 }
