@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Сканворды каждый день</title>
+<meta name="description" content="Новый сканворд каждый день и сколько угодно сканвордов без интернета. Крупный шрифт, большая клавиатура, подсказки.">
+<meta name="theme-color" content="#EEF3FB">
+<meta property="og:title" content="Сканворд дня — попробуйте решить!">
+<meta property="og:description" content="Новый сканворд каждый день. Сможете быстрее меня?">
+<meta property="og:image" content="https://ravettikeney-sudo.github.io/skanvordy/og-image.png">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preload" href="fonts/rubik-cyrillic-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Главная -->
+<section id="home" class="screen on">
+  <div class="scroll notebook">
+    <div class="wrap">
+      <div class="top">
+        <div class="brand"><i><b></b><b></b><b></b><b></b></i>Сканворды</div>
+        <button class="iconbtn" id="openSettings" aria-label="Настройки">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+      </div>
+
+      <div class="today" id="today"></div>
+
+      <div class="sec">Новый сканворд</div>
+      <div class="sizes" id="sizes"></div>
+
+      <div class="sec">Праздничные</div>
+      <div class="themes" id="themes"></div>
+
+      <div id="contWrap">
+        <div class="sec">Продолжить</div>
+        <div class="list" id="cont"></div>
+      </div>
+
+      <div class="sec">Сканворды прошлых дней</div>
+      <div class="days" id="days"></div>
+
+      <div class="sec">Ваши успехи</div>
+      <div class="stats" id="stats"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Игра -->
+<section id="game" class="screen">
+  <div class="gbar">
+    <button class="iconbtn" id="back" aria-label="Назад">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <div class="title"><b id="gTitle"></b><small id="gTime">0:00</small></div>
+    <button class="iconbtn" id="zoom" aria-label="Крупнее">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4M11 8v6M8 11h6" id="zoomPlus"/></svg>
+    </button>
+    <button class="hintbtn" id="hintBtn" aria-label="Подсказки">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg>
+      <span id="hintCount">0</span>
+    </button>
+  </div>
+  <div class="board" id="board"><div class="gridbox" id="gridbox"><div class="grid" id="grid"></div><svg class="arrows" id="arrows"></svg></div></div>
+  <div class="cluebar">
+    <button class="nav" id="prevW" aria-label="Предыдущее слово"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <div class="cluetext" id="clueText"><b></b><small></small></div>
+    <button class="nav" id="nextW" aria-label="Следующее слово"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+  <div class="kbd" id="kbd"></div>
+</section>
+
+<div class="sheetbg" id="sheetbg"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+<div class="loader" id="loader"><div><div class="g"><span></span><span style="animation-delay:.15s"></span><span style="animation-delay:.3s"></span><span style="animation-delay:.45s"></span></div><b id="loaderText">Составляю сканворд…</b></div></div>
+<canvas class="confetti" id="confetti" hidden></canvas>
+
+<script src="words.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

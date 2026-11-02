@@ -1,0 +1,24 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'by.skanvordy.app'
+    compileSdk 34
+    defaultConfig {
+        applicationId "by.skanvordy.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("HOME") + "/apk/skanvordy.keystore")
+            storePassword "skanvordy-store"
+            keyAlias "skanvordy"
+            keyPassword "skanvordy-store"
+        }
+    }
+    buildTypes {
+        release { minifyEnabled false; signingConfig signingConfigs.release }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
