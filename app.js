@@ -138,6 +138,38 @@
     const f = r.p.cells.reduce((n, c, i) => n + (c.t === "L" && r.e[i] ? 1 : 0), 0);
     return L ? f / L : 0;
   }
+  // ---------- календарь сканвордов дня ----------
+  const MONTHS_N = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+  const MONTHS_P = ["январе", "феврале", "марте", "апреле", "мае", "июне", "июле", "августе", "сентябре", "октябре", "ноябре", "декабре"];
+  let calY = null, calM = null;
+  function renderCal() {
+    const s = today(), t = parseD(s);
+    if (calY === null) { calY = t.getFullYear(); calM = t.getMonth(); }
+    const first = new Date(calY, calM, 1), nDays = new Date(calY, calM + 1, 0).getDate();
+    const isCur = calY === t.getFullYear() && calM === t.getMonth();
+    const minD = new Date(t.getFullYear(), t.getMonth() - 11, 1);
+    const canPrev = first > minD;
+    let cells = "", solved = 0, avail = 0;
+    const off = (first.getDay() + 6) % 7;
+    for (let i = 0; i < off; i++) cells += `<span class="day blank"></span>`;
+    for (let dd = 1; dd <= nDays; dd++) {
+      const ds = calY + "-" + pad(calM + 1) + "-" + pad(dd), fut = ds > s;
+      const rr = fut ? null : loadRec("d" + ds), pr = rr && !rr.done ? progress(rr) : 0;
+      if (!fut) avail++;
+      if (rr && rr.done) solved++;
+      const cls = "day" + (fut ? " fut" : rr && rr.done ? " done" : rr ? " part" : "") + (ds === s ? " cur" : "");
+      const lbl = "Сканворд " + human(ds) + (rr && rr.done ? ", решён за " + tfmt(rr.t) : rr ? ", решено " + Math.round(pr * 100) + "%" : "");
+      cells += `<button class="${cls}" data-d="${ds}" ${fut ? "disabled" : ""} aria-label="${lbl}" style="--p:${Math.max(12, Math.round(pr * 100))}%"><b>${dd}</b>${rr && rr.done ? "<i>✓</i>" : ""}</button>`;
+    }
+    $("#days").innerHTML = `<div class="calhead"><button class="cnav" id="calPrev" ${canPrev ? "" : "disabled"} aria-label="Предыдущий месяц">‹</button><b>${MONTHS_N[calM]} ${calY}</b><button class="cnav" id="calNext" ${isCur ? "disabled" : ""} aria-label="Следующий месяц">›</button></div>
+      <div class="calwd">${["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(w => `<span>${w}</span>`).join("")}</div>
+      <div class="calgrid">${cells}</div>
+      <div class="calfoot"><span>Решено в ${MONTHS_P[calM]}: <b>${solved} из ${avail}</b></span><span class="leg"><i class="l1"></i>решён <i class="l2"></i>начат</span></div>`;
+    $("#days").querySelectorAll("button.day:not([disabled])").forEach(b => b.onclick = () => openDaily(b.dataset.d));
+    if ($("#calPrev")) $("#calPrev").onclick = () => { if (--calM < 0) { calM = 11; calY--; } renderCal(); };
+    if ($("#calNext")) $("#calNext").onclick = () => { if (++calM > 11) { calM = 0; calY++; } renderCal(); };
+  }
+
   function renderHome() {
     const s = today(), d = parseD(s), th = themeFor(s), r = loadRec("d" + s);
     const box = $("#today"); box.innerHTML = "";
@@ -180,16 +212,7 @@
       b.onclick = () => g ? window.SKG.resume(x) : startGame(x); $("#cont").appendChild(b);
     });
 
-    const days = $("#days"); days.innerHTML = "";
-    const first = new Date(d); first.setDate(d.getDate() - 27);
-    for (let i = 0; i < 28; i++) {
-      const x = new Date(first); x.setDate(first.getDate() + i);
-      const ds = dstr(x), rr = loadRec("d" + ds);
-      const b = document.createElement("button");
-      b.className = "day" + (rr && rr.done ? " done" : rr ? " part" : "") + (ds === s ? " cur" : "");
-      b.textContent = x.getDate(); b.setAttribute("aria-label", "Сканворд " + human(ds));
-      b.onclick = () => openDaily(ds); days.appendChild(b);
-    }
+    renderCal();
     const streak = ST.lastDaily && (ST.lastDaily === s || ST.lastDaily === dstr(new Date(d.getTime() - 864e5))) ? ST.streak : 0;
     $("#stats").innerHTML = `<div class="stat"><b>${ST.solved}</b><small>${plural(ST.solved, "сканворд", "сканворда", "сканвордов")} решено</small></div>
       <div class="stat"><b>${streak}</b><small>${plural(streak, "день", "дня", "дней")} подряд</small></div>

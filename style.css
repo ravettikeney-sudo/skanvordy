@@ -90,11 +90,28 @@ button:focus-visible,.cell:focus-visible{outline:3px solid var(--marker);outline
 .stat b{display:block;font-size:1.5rem}
 .stat small{color:var(--ink2);font-size:.82rem}
 
-.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-bottom:6px}
-.day{aspect-ratio:1;min-width:0;width:100%;padding:0;border-radius:12px;background:var(--sheet);box-shadow:var(--shadow);display:grid;place-items:center;font-weight:500;position:relative}
-.day.done{background:var(--ink);color:var(--paper)}
-.day.part::after{content:"";position:absolute;bottom:6px;width:6px;height:6px;border-radius:50%;background:var(--marker)}
-.day.cur{outline:3px solid var(--marker)}
+.days{background:var(--sheet);border-radius:20px;box-shadow:var(--shadow);padding:12px 12px 14px;margin-bottom:6px}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.calhead b{font-size:1.12rem}
+.cnav{width:44px;height:40px;border-radius:12px;background:var(--paper);font-size:1.5rem;line-height:1;font-weight:500}
+.cnav[disabled]{opacity:.3}
+.calwd,.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.calwd span{text-align:center;font-size:.8rem;color:var(--ink2);padding-bottom:4px}
+.calwd span:nth-child(n+6){color:var(--err)}
+.day{aspect-ratio:1;min-width:0;width:100%;padding:0;border-radius:10px;background:var(--paper);display:grid;place-items:center;font-weight:500;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line2)}
+.day b{position:relative;z-index:1;font-weight:500}
+.day.blank{background:none;box-shadow:none}
+.day.fut{opacity:.35;background:none}
+.day.part{background:linear-gradient(to top,var(--marker) var(--p),var(--paper) var(--p))}
+.day.done{background:var(--ok);color:#fff;box-shadow:none}
+.day.done b{font-weight:700;transform:translateY(-3px)}
+.day i{position:absolute;bottom:2px;left:0;right:0;text-align:center;font-style:normal;font-size:.62rem;font-weight:700;line-height:1}
+.day.cur{outline:3px solid var(--ink);outline-offset:-1px}
+.calfoot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:.88rem;color:var(--ink2);flex-wrap:wrap}
+.calfoot b{color:var(--ink)}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin:0 3px 0 8px}
+.leg .l1{background:var(--ok)}
+.leg .l2{background:var(--marker)}
 
 /* ---------- Игра ---------- */
 #game{background:var(--paper)}
