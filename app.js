@@ -568,8 +568,8 @@
       <button class="big alt" id="wHome">На главную</button></div>`);
     $("#wShare").onclick = share;
     if ($("#wCard")) $("#wCard").onclick = () => { const u = CARDS + "?h=" + th.card; if (APP && APP.openUrl) APP.openUrl(u); else window.open(u, "_blank"); };
-    $("#wNext").onclick = () => { closeSheet(); openFree(R.size === "s" || R.size === "l" ? R.size : "m", null, R.theme && R.kind === "theme" ? R.theme : null, R.mode); };
-    $("#wHome").onclick = () => { closeSheet(); goHome(); };
+    $("#wNext").onclick = () => { closeSheet(); if (fresh) adBreak(); openFree(R.size === "s" || R.size === "l" ? R.size : "m", null, R.theme && R.kind === "theme" ? R.theme : null, R.mode); };
+    $("#wHome").onclick = () => { closeSheet(); if (fresh) adBreak(); goHome(); };
   }
   function confetti() {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -691,8 +691,11 @@
     hintExtras() { return { gift: giftToday(), ads: !!(APP && APP.hasAds && APP.hasAds()), freeLeft: freeLeft() }; },
     takeGift() { ST.gift = today(); ST.hints += 2; saveStats(); toast("+2 подсказки. Приходите завтра за новыми!"); },
     getMore(after) { getMoreGeneric(after); },
+    adBreak() { adBreak(); },
     solvedOne() { ST.solved++; ST.hints += 1; saveStats(); }
   };
+  // Полноэкранная реклама при уходе с экрана победы. Как часто показывать, решает само приложение (не чаще раза в 4 минуты).
+  function adBreak() { try { if (APP && APP.showInterstitial) APP.showInterstitial(); } catch (e) { } }
   function getMoreGeneric(after) {
     if (APP && APP.hasAds && APP.hasAds()) {
       window.onRewarded = ok => { if (ok) { ST.hints += 3; saveStats(); toast("+3 подсказки"); after && after(); } else toast("Видео не досмотрено, подсказки не начислены"); };

@@ -1,13 +1,13 @@
 plugins { id 'com.android.application' }
 android {
     namespace 'by.skanvordy.app'
-    compileSdk 34
+    compileSdk 35
     defaultConfig {
         applicationId "by.skanvordy.app"
         minSdk 24
         targetSdk 34
-        versionCode 2
-        versionName "1.1"
+        versionCode 3
+        versionName "1.2"
     }
     signingConfigs {
         release {
@@ -27,4 +27,8 @@ android {
         release { minifyEnabled false; signingConfig signingConfigs.release }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+
+dependencies {
+    implementation "com.yandex.android:mobileads:8.6.0"
 }

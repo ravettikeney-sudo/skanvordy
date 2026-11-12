@@ -23,6 +23,7 @@ public class MainActivity extends Activity {
     static final String HOME = "https://ravettikeney-sudo.github.io/skanvordy/";
     private static final String HOST = "ravettikeney-sudo.github.io";
     private WebView web;
+    private Ads ads;
     private static final int REQ_NOTIFY = 13;
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -44,7 +45,7 @@ public class MainActivity extends Activity {
         s.setTextZoom(100);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-        s.setUserAgentString(s.getUserAgentString() + " SkanvordyApp/1.0");
+        s.setUserAgentString(s.getUserAgentString() + " SkanvordyApp/1.2");
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
@@ -59,6 +60,7 @@ public class MainActivity extends Activity {
             }
         });
         web.addJavascriptInterface(new Bridge(), "SkanApp");
+        ads = new Ads(this, code -> runOnUiThread(() -> { if (web != null) web.evaluateJavascript(code, null); }));
         Daily.ensureChannel(this);
         Daily.schedule(this);
         if (BuildConfig.SELF_UPDATE) Updater.check(this);
@@ -95,11 +97,12 @@ public class MainActivity extends Activity {
                     && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
                 runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIFY));
         }
-        /** Реклама за подсказки: включится, когда будут номера блоков РСЯ. */
-        @JavascriptInterface public boolean hasAds() { return false; }
-        @JavascriptInterface public void showRewarded() {
-            runOnUiThread(() -> web.evaluateJavascript("window.onRewarded&&window.onRewarded(false)", null));
-        }
+        /** Есть ли загруженное видео за подсказки. */
+        @JavascriptInterface public boolean hasAds() { return ads != null && ads.hasRewarded(); }
+        /** Показать видео за подсказки; ответ придёт в window.onRewarded(true|false). */
+        @JavascriptInterface public void showRewarded() { runOnUiThread(() -> ads.showRewarded()); }
+        /** Человек уходит с экрана победы: здесь иногда показываем полноэкранную рекламу. */
+        @JavascriptInterface public void showInterstitial() { runOnUiThread(() -> ads.maybeShowInterstitial()); }
         @JavascriptInterface public void shareText(String text) {
             Intent send = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text);
             runOnUiThread(() -> { try { startActivity(Intent.createChooser(send, "Отправить результат")); } catch (Exception e) { toast("Не получилось отправить"); } });
@@ -131,6 +134,6 @@ public class MainActivity extends Activity {
 
     @Override protected void onSaveInstanceState(Bundle out) { super.onSaveInstanceState(out); web.saveState(out); }
     @Override protected void onPause() { super.onPause(); web.onPause(); }
-    @Override protected void onResume() { super.onResume(); web.onResume(); if (BuildConfig.SELF_UPDATE) Updater.resume(this); }
+    @Override protected void onResume() { super.onResume(); web.onResume(); if (ads != null) ads.resume(); if (BuildConfig.SELF_UPDATE) Updater.resume(this); }
     @Override protected void onDestroy() { web.destroy(); super.onDestroy(); }
 }

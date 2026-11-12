@@ -171,8 +171,8 @@
       <button class="big alt" id="wNext">${info.next || "Ещё одну"}</button>
       <button class="big alt" id="wHome">На главную</button></div>`);
     $("#wShare").onclick = () => SK().shareText(shareText(r, stars));
-    $("#wNext").onclick = () => { SK().closeSheet(); leave(); r.kind === "daily" ? start(r.game, r.size || "m", null) : start(r.game, r.size, r.theme); };
-    $("#wHome").onclick = () => { SK().closeSheet(); leave(); SK().goHome(); };
+    $("#wNext").onclick = () => { SK().closeSheet(); leave(); if (fresh) SK().adBreak(); r.kind === "daily" ? start(r.game, r.size || "m", null) : start(r.game, r.size, r.theme); };
+    $("#wHome").onclick = () => { SK().closeSheet(); leave(); if (fresh) SK().adBreak(); SK().goHome(); };
   }
   function shareText(r, stars) {
     const H = SK().HOME;
